@@ -8,12 +8,13 @@ Sistema de apontamento de horas desenvolvido com **Streamlit** para controle de 
 
 | Página | Descrição |
 |---|---|
-| 🏠 **Registrar Ponto** | Registo diário com horário de entrada, almoço e saída. Alocação de horas por projeto com validação. |
+| 🏠 **Registrar Ponto** | Registo diário com horário de entrada, almoço e saída. Alocação de horas por **projeto e empresa** com validação. |
 | 📋 **Projetos** | CRUD de projetos com nome, descrição, cor e estado (ativo/inativo). |
-| 📊 **Dashboard** | Visão geral com cards de horas trabalhadas, saldo, resumo semanal/mensal e gráficos interativos com Plotly. |
-| 📅 **Histórico** | Listagem paginada de todos os registos com filtros por data e projeto. |
+| 🏢 **Empresas** | CRUD de empresas com nome, descrição, cor e estado (ativo/inativo). Ao lançar horas, escolhe-se a empresa de forma independente do projeto. |
+| 📊 **Dashboard** | Visão geral com **filtros de seleção múltipla por empresa e projeto**. Cards e gráficos refletem as horas alocadas aos itens selecionados, com distribuição por projeto/empresa e gráficos interativos com Plotly. |
+| 📅 **Histórico** | Listagem de todos os registos com filtros por data e projeto, colunas de empresa e edição de alocações (projeto + empresa). |
 | ⚙️ **Configurações** | Definição de carga horária diária/semanal, feriados (fixos e recorrentes), ignorar fins de semana. |
-| 📥 **Exportar Excel** | Exportação formatada em XLSX com 3 folhas: registos, alocações por projeto e resumo. |
+| 📥 **Exportar Excel** | Exportação formatada em XLSX com 4 folhas: registos detalhados, resumo por projeto, **resumo por empresa** e resumo mensal. |
 
 ---
 
@@ -32,7 +33,8 @@ Sistema de apontamento de horas desenvolvido com **Streamlit** para controle de 
 ```
 time_entries        — registos diários (data, entrada, almoço, saída, notas)
 projects            — projetos (nome, descrição, cor, ativo)
-project_allocations — horas alocadas a projetos por registo
+companies           — empresas (nome, descrição, cor, ativo)
+project_allocations — horas alocadas a projetos/empresas por registo
 holidays            — feriados (fixos e recorrentes)
 settings            — configurações (horas diárias, semanais, etc.)
 ```
@@ -88,10 +90,11 @@ ponto-eletronico/
 ├── pages/
 │   ├── 1_registro.py       # Registo diário de ponto
 │   ├── 2_projetos.py       # Gestão de projetos
-│   ├── 3_dashboard.py      # Dashboard analítico
+│   ├── 3_dashboard.py      # Dashboard analítico (com filtros)
 │   ├── 4_historico.py      # Histórico de registos
 │   ├── 5_configuracoes.py  # Configurações e feriados
-│   └── 6_exportar.py       # Exportação para Excel
+│   ├── 6_exportar.py       # Exportação para Excel
+│   └── 7_empresas.py       # Gestão de empresas
 └── data/
     └── ponto.db            # Base de dados SQLite (gerada automaticamente)
 ```
