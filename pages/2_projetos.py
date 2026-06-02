@@ -189,34 +189,26 @@ else:
             safe_name = proj["name"].replace("<", "&lt;").replace(">", "&gt;")
             safe_desc = desc_text.replace("<", "&lt;").replace(">", "&gt;")
 
-            card_html = f"""
-            <div style="
-                border-left: 4px solid {border_color};
-                border-radius: 8px;
-                padding: 1rem;
-                margin-bottom: 0.8rem;
-                background: rgba(255,255,255,0.03);
-                min-height: 120px;
-            ">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="
-                        width: 14px; height: 14px;
-                        border-radius: 50%;
-                        background: {border_color};
-                        display: inline-block;
-                        flex-shrink: 0;
-                    "></span>
-                    <strong style="font-size: 1rem;">{safe_name}</strong>
-                    {status_badge}
-                </div>
-                <div style="margin-top: 6px; font-size: 0.85rem; color: #a0a0b8; min-height: 20px;">
-                    {safe_desc}
-                </div>
-                <div style="margin-top: 8px; font-weight: 600; font-size: 1.1rem; color: #e0e0e0;">
-                    ⏱️ {format_hours(total_hours)}
-                </div>
-            </div>
-            """
+            # NOTE: HTML lines must NOT be indented. Markdown treats lines
+            # indented with 4+ spaces as a code block, which would render the
+            # raw HTML as text instead of a card.
+            card_html = (
+                f'<div style="border-left: 4px solid {border_color}; '
+                'border-radius: 8px; padding: 1rem; margin-bottom: 0.8rem; '
+                'background: rgba(255,255,255,0.03); min-height: 120px;">'
+                '<div style="display: flex; align-items: center; gap: 8px;">'
+                f'<span style="width: 14px; height: 14px; border-radius: 50%; '
+                f'background: {border_color}; display: inline-block; '
+                'flex-shrink: 0;"></span>'
+                f'<strong style="font-size: 1rem;">{safe_name}</strong>'
+                f'{status_badge}'
+                '</div>'
+                '<div style="margin-top: 6px; font-size: 0.85rem; '
+                f'color: #a0a0b8; min-height: 20px;">{safe_desc}</div>'
+                '<div style="margin-top: 8px; font-weight: 600; '
+                f'font-size: 1.1rem; color: #e0e0e0;">⏱️ {format_hours(total_hours)}</div>'
+                '</div>'
+            )
 
             st.markdown(card_html, unsafe_allow_html=True)
 

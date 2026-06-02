@@ -12,6 +12,7 @@ from database import (
     get_time_entry,
     get_time_entries,
     get_projects,
+    get_companies,
     create_allocation,
     delete_allocations_for_entry,
     get_allocations_for_entry,
@@ -25,14 +26,14 @@ from utils import (
 )
 import pandas as pd
 
-st.title("🏠 Registrar Ponto")
+st.title(":white_check_mark: Registrar Ponto")
 st.caption("Registre suas horas trabalhadas e vincule a projetos")
 
 # ── Initialize session state ──
 if "editing_entry_id" not in st.session_state:
     st.session_state.editing_entry_id = None
 if "allocations_data" not in st.session_state:
-    st.session_state.allocations_data = []  # list of (project_id, hours, notes)
+    st.session_state.allocations_data = []  # list of (company_id, project_id, hours, notes)
 if "reg_save_triggered" not in st.session_state:
     st.session_state.reg_save_triggered = False
 if "reg_success_msg" not in st.session_state:
@@ -58,7 +59,7 @@ def clear_form_state():
     for key in ["reg_date", "reg_start", "reg_lunch_s", "reg_lunch_e", "reg_end", "reg_notes"]:
         st.session_state.pop(key, None)
     # Clear stale allocation widget keys
-    keys_to_pop = [k for k in st.session_state if k.startswith("pa_proj_") or k.startswith("pa_hrs_") or k.startswith("pa_note_") or k.startswith("pa_rm_")]
+    keys_to_pop = [k for k in st.session_state if k.startswith(("pa_comp_", "pa_proj_", "pa_hrs_", "pa_note_", "pa_rm_"))]
     for k in keys_to_pop:
         st.session_state.pop(k, None)
 
@@ -70,7 +71,7 @@ def load_entry_for_edit(entry_id: int):
 
     st.session_state.editing_entry_id = entry_id
     st.session_state.allocations_data = [
-        (a["project_id"], a["hours"], a.get("notes", "")) for a in allocs
+        (a.get("company_id"), a["project_id"], a["hours"], a.get("notes", "")) for a in allocs
     ]
     st.session_state.reg_date = (
         date.fromisoformat(entry["date"]) if entry["date"] else date.today()
@@ -88,7 +89,9 @@ def add_allocation_callback():
     if not projects:
         st.warning("Cadastre um projeto primeiro na página 📋 Projetos")
         return
-    st.session_state.allocations_data.append((projects[0]["id"], 0.0, ""))
+    companies = get_companies(active_only=True)
+    default_company = companies[0]["id"] if companies else None
+    st.session_state.allocations_data.append((default_company, projects[0]["id"], 0.0, ""))
 
 
 def remove_allocation_callback(idx: int):
@@ -98,7 +101,7 @@ def remove_allocation_callback(idx: int):
         # Clear all allocation widget keys so values reload from allocations_data
         keys_to_pop = [
             k for k in list(st.session_state.keys())
-            if k.startswith(("pa_proj_", "pa_hrs_", "pa_note_", "pa_rm_"))
+            if k.startswith(("pa_comp_", "pa_proj_", "pa_hrs_", "pa_note_", "pa_rm_"))
         ]
         for k in keys_to_pop:
             st.session_state.pop(k, None)
@@ -178,25 +181,43 @@ st.markdown("---")
 st.subheader("📎 Vincular a Projetos")
 
 projects = get_projects(active_only=True)
+companies = get_companies(active_only=True)
 
 if not projects:
     st.warning("⚠️ Nenhum projeto ativo. Vá para a página 📋 Projetos e cadastre um projeto primeiro.")
 else:
+    if not companies:
+        st.info("💡 Dica: cadastre empresas na página 🏢 Empresas para vincular as horas a uma empresa.")
+
     project_names = [p["name"] for p in projects]
     project_id_by_name = {p["name"]: p["id"] for p in projects}
 
+    NO_COMPANY = "— Sem empresa —"
+    company_names = [NO_COMPANY] + [c["name"] for c in companies]
+    company_id_by_name = {c["name"]: c["id"] for c in companies}
+    company_name_by_id = {c["id"]: c["name"] for c in companies}
+
     # Render each allocation row
     for idx in range(len(st.session_state.allocations_data)):
-        proj_id, hrs, alloc_notes = st.session_state.allocations_data[idx]
+        company_id, proj_id, hrs, alloc_notes = st.session_state.allocations_data[idx]
 
         # Ensure proj_id is still valid
         if proj_id not in [p["id"] for p in projects]:
             proj_id = projects[0]["id"]
-            st.session_state.allocations_data[idx] = (proj_id, hrs, alloc_notes)
+            st.session_state.allocations_data[idx] = (company_id, proj_id, hrs, alloc_notes)
 
         proj_name = next((p["name"] for p in projects if p["id"] == proj_id), project_names[0])
+        comp_name = company_name_by_id.get(company_id, NO_COMPANY)
 
-        c1, c2, c3, c4 = st.columns([3, 1.5, 3, 1])
+        c0, c1, c2, c3, c4 = st.columns([3, 3, 1.5, 3, 1])
+        with c0:
+            sel_company = st.selectbox(
+                f"Empresa #{idx + 1}",
+                company_names,
+                index=company_names.index(comp_name) if comp_name in company_names else 0,
+                key=f"pa_comp_{idx}",
+                label_visibility="visible",
+            )
         with c1:
             sel_name = st.selectbox(
                 f"Projeto #{idx + 1}",
@@ -234,7 +255,8 @@ else:
 
         # Update session state from widget values
         new_proj_id = project_id_by_name.get(sel_name, proj_id)
-        st.session_state.allocations_data[idx] = (new_proj_id, hrs_val, alloc_note)
+        new_company_id = company_id_by_name.get(sel_company)  # None for "Sem empresa"
+        st.session_state.allocations_data[idx] = (new_company_id, new_proj_id, hrs_val, alloc_note)
 
     # Add allocation button (outside form)
     st.button(
@@ -245,7 +267,7 @@ else:
 
     # Show allocation summary
     if st.session_state.allocations_data:
-        total_alloc = sum(h for (_, h, _) in st.session_state.allocations_data)
+        total_alloc = sum(h for (_, _, h, _) in st.session_state.allocations_data)
         if total_alloc > 0:
             color = "#f87171" if (worked > 0 and total_alloc > worked) else "#a0a0b8"
             st.caption(f"Total alocado: **{format_hours(total_alloc)}** | Horas trabalhadas: **{format_hours(worked)}**")
@@ -268,7 +290,7 @@ if st.session_state.reg_save_triggered:
     st.session_state.reg_save_triggered = False
 
     # Validate allocations
-    total_alloc = sum(h for (_, h, _) in st.session_state.allocations_data)
+    total_alloc = sum(h for (_, _, h, _) in st.session_state.allocations_data)
     if total_alloc > worked and worked > 0:
         st.error(
             f"⚠️ Total alocado aos projetos ({format_hours(total_alloc)}) "
@@ -290,9 +312,9 @@ if st.session_state.reg_save_triggered:
             )
 
         # Save allocations
-        for (proj_id, hrs, alloc_notes) in st.session_state.allocations_data:
+        for (comp_id, proj_id, hrs, alloc_notes) in st.session_state.allocations_data:
             if hrs > 0:
-                create_allocation(entry_id, proj_id, hrs, alloc_notes)
+                create_allocation(entry_id, proj_id, hrs, alloc_notes, company_id=comp_id)
 
         if editing:
             st.session_state.reg_success_msg = f"✅ Registro #{entry_id} atualizado!"
@@ -327,6 +349,7 @@ else:
             "Volta Almoço": e["lunch_end"] or "—",
             "Saída": e["end_time"] or "—",
             "Horas": e["worked_hours_str"],
+            "Empresas": e["company_names"],
             "Projetos": e["project_names"],
             "Obs": (e["notes"] or "—")[:60],
         })

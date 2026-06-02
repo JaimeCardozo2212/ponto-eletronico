@@ -11,7 +11,13 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side, numbers
 from openpyxl.utils import get_column_letter
 
-from database import get_time_entries, get_projects, get_allocations_summary, get_allocations_for_entry
+from database import (
+    get_time_entries,
+    get_projects,
+    get_allocations_summary,
+    get_company_allocations_summary,
+    get_allocations_for_entry,
+)
 from utils import (
     parse_time,
     calculate_worked_hours,
@@ -69,6 +75,7 @@ for e in enriched:
         "Saída": e["end_time"] or "—",
         "Horas": e["worked_hours"],
         "Projetos": e["project_names"],
+        "Empresas": e["company_names"],
         "Observações": (e["notes"] or "") if e["notes"] else "",
     })
 
@@ -119,7 +126,7 @@ def generate_excel() -> BytesIO:
     ws1.title = "Registros Detalhados"
     headers1 = [
         "Data", "Dia", "Entrada", "Início Almoço", "Volta Almoço",
-        "Saída", "Horas Trabalhadas", "Projetos", "Observações",
+        "Saída", "Horas Trabalhadas", "Projetos", "Empresas", "Observações",
     ]
     style_header(ws1, headers1)
 
@@ -132,7 +139,8 @@ def generate_excel() -> BytesIO:
         style_data_cell(ws1, i, 6, row_data["Saída"])
         style_data_cell(ws1, i, 7, row_data["Horas"])
         style_data_cell(ws1, i, 8, row_data["Projetos"])
-        style_data_cell(ws1, i, 9, row_data["Observações"])
+        style_data_cell(ws1, i, 9, row_data["Empresas"])
+        style_data_cell(ws1, i, 10, row_data["Observações"])
 
     # Total row
     total_row = len(preview_data) + 2
@@ -141,7 +149,7 @@ def generate_excel() -> BytesIO:
     ws1.cell(row=total_row, column=7).font = bold_font
 
     # Column widths
-    widths1 = [12, 6, 8, 12, 12, 8, 14, 30, 30]
+    widths1 = [12, 6, 8, 12, 12, 8, 14, 30, 25, 30]
     for i, w in enumerate(widths1, 1):
         ws1.column_dimensions[get_column_letter(i)].width = w
 
@@ -162,7 +170,23 @@ def generate_excel() -> BytesIO:
     for i, w in enumerate(widths2, 1):
         ws2.column_dimensions[get_column_letter(i)].width = w
 
-    # ── Sheet 3: Resumo Mensal ──
+    # ── Sheet 3: Resumo por Empresa ──
+    ws_comp = wb.create_sheet("Resumo por Empresa")
+    headers_comp = ["Empresa", "Cor", "Horas Totais", "% do Total"]
+    style_header(ws_comp, headers_comp)
+
+    comp_summary = get_company_allocations_summary(start_date, end_date)
+    for i, c in enumerate(comp_summary, 2):
+        style_data_cell(ws_comp, i, 1, c["name"])
+        style_data_cell(ws_comp, i, 2, c.get("color", ""))
+        style_data_cell(ws_comp, i, 3, round(c["total_hours"], 2))
+        pct = (c["total_hours"] / total_hours * 100) if total_hours > 0 else 0
+        style_data_cell(ws_comp, i, 4, f"{pct:.1f}%")
+
+    for i, w in enumerate([30, 10, 14, 12], 1):
+        ws_comp.column_dimensions[get_column_letter(i)].width = w
+
+    # ── Sheet 4: Resumo Mensal ──
     ws3 = wb.create_sheet("Resumo Mensal")
     headers3 = ["Mês/Ano", "Dias Úteis", "Horas Trabalhadas", "Horas Esperadas", "Saldo"]
     style_header(ws3, headers3)
@@ -222,4 +246,4 @@ st.download_button(
 )
 
 st.caption(f"📁 Arquivo: `{file_name}`")
-st.caption("📋 O Excel contém 3 abas: Registros Detalhados, Resumo por Projeto, e Resumo Mensal.")
+st.caption("📋 O Excel contém 4 abas: Registros Detalhados, Resumo por Projeto, Resumo por Empresa, e Resumo Mensal.")

@@ -11,6 +11,7 @@ from database import (
     get_time_entries,
     get_time_entry,
     get_projects,
+    get_companies,
     update_time_entry,
     delete_time_entry,
     delete_allocations_for_entry,
@@ -86,6 +87,7 @@ if enriched:
             "Volta Almoço": e["lunch_end"] or "—",
             "Saída": e["end_time"] or "—",
             "Horas": e["worked_hours_str"],
+            "Empresas": e["company_names"],
             "Projetos": e["project_names"],
             "Obs": (e["notes"] or "—")[:50],
         })
@@ -174,11 +176,25 @@ if enriched:
 
                 # Allocations edit
                 st.markdown("**Alocações de Projeto:**")
+                NO_COMPANY = "— Sem empresa —"
+                all_companies = get_companies()
+                company_choices = [NO_COMPANY] + [c["name"] for c in all_companies]
+                company_map = {c["name"]: c["id"] for c in all_companies}
+                company_name_by_id = {c["id"]: c["name"] for c in all_companies}
+                proj_names = [p["name"] for p in get_projects()]
+                proj_map = {p["name"]: p["id"] for p in get_projects()}
                 new_allocs = []
                 for i, a in enumerate(allocs):
-                    c1, c2, c3 = st.columns([3, 2, 1])
+                    c0, c1, c2, c3 = st.columns([3, 3, 2, 1])
+                    with c0:
+                        cur_comp = company_name_by_id.get(a.get("company_id"), NO_COMPANY)
+                        sel_comp = st.selectbox(
+                            f"Empresa #{i+1}",
+                            company_choices,
+                            index=company_choices.index(cur_comp) if cur_comp in company_choices else 0,
+                            key=f"hist_ac_{i}",
+                        )
                     with c1:
-                        proj_names = [p["name"] for p in get_projects()]
                         idx = (
                             proj_names.index(a["project_name"])
                             if a["project_name"] in proj_names
@@ -203,8 +219,8 @@ if enriched:
                         st.markdown("<br>", unsafe_allow_html=True)
                         remove = st.checkbox("Remover", key=f"hist_arm_{i}")
                     if not remove:
-                        proj_map = {p["name"]: p["id"] for p in get_projects()}
                         new_allocs.append((
+                            company_map.get(sel_comp),
                             proj_map.get(sel_proj, a["project_id"]),
                             hrs,
                             a.get("notes", ""),
@@ -222,9 +238,9 @@ if enriched:
                     new_lunch_s, new_lunch_e, new_end, new_notes,
                 )
                 delete_allocations_for_entry(entry_id_input)
-                for proj_id, hrs, anotes in new_allocs:
+                for comp_id, proj_id, hrs, anotes in new_allocs:
                     if hrs > 0:
-                        create_allocation(entry_id_input, proj_id, hrs, anotes)
+                        create_allocation(entry_id_input, proj_id, hrs, anotes, company_id=comp_id)
                 st.success(f"Registro #{entry_id_input} atualizado!")
                 st.rerun()
 

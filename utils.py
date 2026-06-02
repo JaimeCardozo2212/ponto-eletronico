@@ -160,6 +160,11 @@ def get_daily_hours_with_projects(entry: dict) -> dict[str, Any]:
     )
     allocations = get_allocations_for_entry(entry["id"])
     project_names = ", ".join(a["project_name"] for a in allocations) if allocations else "—"
+    company_names_list = [a.get("company_name") for a in allocations if a.get("company_name")]
+    # Preserve order while removing duplicates
+    seen: set[str] = set()
+    unique_companies = [c for c in company_names_list if not (c in seen or seen.add(c))]
+    company_names = ", ".join(unique_companies) if unique_companies else "—"
     allocated_hours = sum(a["hours"] for a in allocations)
 
     return {
@@ -167,6 +172,7 @@ def get_daily_hours_with_projects(entry: dict) -> dict[str, Any]:
         "worked_hours": worked,
         "worked_hours_str": format_hours(worked),
         "project_names": project_names,
+        "company_names": company_names,
         "allocated_hours": allocated_hours,
         "allocations": allocations,
     }

@@ -81,6 +81,7 @@ with st.sidebar:
         [
             "🏠 Registrar Ponto",
             "📋 Projetos",
+            "🏢 Empresas",
             "📊 Dashboard",
             "📅 Histórico",
             "⚙️ Configurações",
@@ -97,6 +98,7 @@ with st.sidebar:
 page_map = {
     "🏠 Registrar Ponto": "pages/1_registro.py",
     "📋 Projetos": "pages/2_projetos.py",
+    "🏢 Empresas": "pages/7_empresas.py",
     "📊 Dashboard": "pages/3_dashboard.py",
     "📅 Histórico": "pages/4_historico.py",
     "⚙️ Configurações": "pages/5_configuracoes.py",
